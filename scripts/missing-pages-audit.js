@@ -1,0 +1,1 @@
+const fs=require("fs"); const required=["app/student/discounts/page.tsx","app/student/earn/page.tsx","app/student/settings/page.tsx","app/api/student/discounts/route.ts","app/api/student/earn/route.ts","app/api/student/settings/route.ts"]; for(const f of required) console.log(`${fs.existsSync(f)?"PASS":"MISSING"} ${f}`);

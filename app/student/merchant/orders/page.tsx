@@ -1,0 +1,2 @@
+import { requireRole } from "@/lib/session"; import { listMarketplaceOrders } from "@/lib/marketplaceEngine";
+export default async function Page(){ const u=await requireRole(["MERCHANT"]); const rows=await listMarketplaceOrders(u.id); return <main className="min-h-screen bg-white p-6"><section className="mx-auto max-w-6xl"><h1 className="text-5xl font-black">Merchant Orders</h1><p className="mt-4">Orders: {rows.length}</p></section></main>}

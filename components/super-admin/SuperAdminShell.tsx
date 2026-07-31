@@ -1,0 +1,3 @@
+import { SuperAdminSidebar } from "@/components/super-admin/SuperAdminSidebar";
+import { SuperAdminHeader } from "@/components/super-admin/SuperAdminHeader";
+export function SuperAdminShell({children,email}:{children:React.ReactNode;email:string}){return <main className="super-admin-role-root min-h-screen bg-white text-slate-950"><div className="mx-auto grid w-full max-w-[1540px] gap-5 px-4 py-4 sm:px-6 lg:grid-cols-[288px_minmax(0,1fr)] lg:px-8"><SuperAdminSidebar/><section className="min-w-0"><SuperAdminHeader email={email}/><div className="super-admin-content mt-5 min-w-0">{children}</div></section></div></main>}

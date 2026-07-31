@@ -1,0 +1,1 @@
+const fs=require('fs');['prisma/schema.prisma','lib/prisma.ts','lib/session.ts','lib/access-control.ts','lib/apiDatabase.ts','app/page.tsx','middleware.ts'].forEach(f=>console.log(`${fs.existsSync(f)?'PASS':'MISSING'} ${f}`));

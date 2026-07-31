@@ -1,0 +1,2 @@
+import { requireRole } from "@/lib/session"; import { prisma } from "@/lib/prisma";
+export default async function Page(){ const u=await requireRole(["STUDENT","MERCHANT"]); const rows=await prisma.studentWellbeingCheckIn.findMany({where:{userId:u.id},orderBy:{createdAt:"desc"},take:30}); return <main className="min-h-screen bg-white p-6"><section className="mx-auto max-w-6xl"><h1 className="text-5xl font-black">Wellbeing</h1><p className="mt-4">Recent check-ins: {rows.length}</p></section></main>}

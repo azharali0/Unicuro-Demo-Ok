@@ -1,0 +1,2 @@
+import { recordApiRequest } from "@/lib/apiDatabase"; import { verifyStripeWebhook,applyStripeEvent } from "@/lib/stripeProvider"; import { ok } from "@/lib/http";
+export async function POST(request:Request){await recordApiRequest({endpoint:"/api/billing/webhook",method:"POST",status:"REQUEST_RECEIVED"});const signature=request.headers.get("stripe-signature");if(!signature)return Response.json({ok:false,error:"MISSING_STRIPE_SIGNATURE"},{status:400});const event=await verifyStripeWebhook(await request.text(),signature);return ok(await applyStripeEvent(event));}

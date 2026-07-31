@@ -1,0 +1,2 @@
+const fs = require("fs");
+["app/onboarding/welcome/page.tsx","app/onboarding/profile/page.tsx","app/onboarding/education/page.tsx","app/onboarding/location/page.tsx","app/onboarding/preferences/page.tsx","app/onboarding/ai/page.tsx","app/onboarding/notifications/page.tsx","app/onboarding/marketplace/page.tsx","app/onboarding/merchant/page.tsx","app/onboarding/complete/page.tsx","app/api/onboarding/state/route.ts","app/api/onboarding/step/route.ts","lib/onboardingEngine.ts"].forEach(f=>console.log(`${fs.existsSync(f)?"PASS":"MISSING"} ${f}`));

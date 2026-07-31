@@ -1,0 +1,2 @@
+import { requireRole } from "@/lib/session"; import { prisma } from "@/lib/prisma";
+export default async function Page(){ const u=await requireRole(["MERCHANT"]); const rows=await prisma.sellerPayout.findMany({where:{sellerId:u.id},orderBy:{createdAt:"desc"}}); return <main className="min-h-screen bg-white p-6"><section className="mx-auto max-w-6xl"><h1 className="text-5xl font-black">Merchant Payouts</h1><p className="mt-4">Payout records: {rows.length}</p></section></main>}

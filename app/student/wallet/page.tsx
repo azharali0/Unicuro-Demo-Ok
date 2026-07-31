@@ -1,0 +1,2 @@
+import { requireRole } from "@/lib/session"; import { getWalletSummary } from "@/lib/studentEnginesDb";
+export default async function Page(){ const u=await requireRole(["STUDENT","MERCHANT"]); const w=await getWalletSummary(u.id); return <main className="min-h-screen bg-white p-6"><section className="mx-auto max-w-6xl"><h1 className="text-5xl font-black">Wallet & Ledger</h1><p className="mt-4 text-3xl font-black">{w.balanceCents} {w.wallet.currencyCode}</p></section></main>}

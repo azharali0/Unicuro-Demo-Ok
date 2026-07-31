@@ -1,0 +1,3 @@
+import { z } from "zod"; import { recordApiRequest } from "@/lib/apiDatabase"; import { requireRole } from "@/lib/session"; import { createSubscriptionCheckout } from "@/lib/stripeProvider"; import { ok } from "@/lib/http";
+const schema=z.object({priceId:z.string().min(1).max(191),successUrl:z.string().url(),cancelUrl:z.string().url(),customerEmail:z.string().email().optional()});
+export async function POST(request:Request){await recordApiRequest({endpoint:"/api/billing/checkout",method:"POST",status:"REQUEST_RECEIVED"});const user=await requireRole(["STUDENT","MERCHANT"]);const body=schema.parse(await request.json());const session=await createSubscriptionCheckout({userId:user.id,...body});return ok({sessionId:session.id,url:session.url},{status:201});}

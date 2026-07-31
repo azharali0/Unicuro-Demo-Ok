@@ -1,0 +1,3 @@
+import { requireRole } from "@/lib/session";
+import { getMarketplaceDashboard } from "@/lib/marketplaceIntelligenceEngine";
+export default async function Page(){const u=await requireRole(["STUDENT","MERCHANT"]);const d=await getMarketplaceDashboard(u.id);return <main className="min-h-screen bg-white p-6"><section className="mx-auto max-w-7xl"><h1 className="text-5xl font-black">Marketplace</h1><div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{d.listings.map(l=><article key={l.id} className="rounded-3xl border p-6"><h2 className="text-2xl font-black">{l.title}</h2><p className="mt-2">{l.description}</p><p className="mt-4 font-black">{l.priceCents} {l.currencyCode}</p></article>)}</div></section></main>}

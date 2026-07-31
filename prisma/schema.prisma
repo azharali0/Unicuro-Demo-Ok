@@ -1,0 +1,2655 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+  SUPER_ADMIN
+  MERCHANT
+}
+
+enum ListingStatus {
+  LIVE
+  SAVED
+  SOLD
+  REVIEW
+  BLOCKED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String?
+  name         String
+  role         UserRole @default(STUDENT)
+  countryCode  String?
+  universityId String?
+  trustScore   Int      @default(500)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  profile      StudentProfile?
+  wallet       Wallet?
+  tasks        Task[]
+  deadlines    Deadline[]
+  listings     MarketplaceListing[]
+  auditLogs    AuditLog[]
+}
+
+model StudentProfile {
+  id                    String  @id @default(cuid())
+  userId                String  @unique
+  course                String?
+  preferredLanguage     String  @default("English")
+  preferredCurrency     String  @default("GBP")
+  internationalStudent  Boolean @default(false)
+  timezone              String  @default("Europe/London")
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+
+
+model Country {
+  code               String   @id
+  name               String
+  region             String
+  currency           String
+  defaultLanguage    String
+  timezone           String
+  studentPrice       Decimal  @db.Decimal(10, 2)
+  affordabilityIndex Int
+  universities       University[]
+}
+
+model University {
+  id          String  @id @default(cuid())
+  name        String
+  countryCode String
+  domain      String  @unique
+  city        String
+  country     Country @relation(fields: [countryCode], references: [code])
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  balance   Decimal  @default(0) @db.Decimal(10, 2)
+  points    Int      @default(0)
+  currency  String   @default("GBP")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledger    WalletLedger[]
+}
+
+model WalletLedger {
+  id        String   @id @default(cuid())
+  walletId  String
+  type      String
+  title     String
+  amount    Decimal  @db.Decimal(10, 2)
+  status    String
+  createdAt DateTime @default(now())
+  wallet    Wallet   @relation(fields: [walletId], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  priority  String
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Deadline {
+  id      String   @id @default(cuid())
+  userId  String
+  title   String
+  dueDate DateTime
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Deal {
+  id         String   @id @default(cuid())
+  merchant   String
+  title      String
+  category   String
+  discount   String
+  countryCode String?
+  active     Boolean  @default(true)
+  expiresAt  DateTime?
+  createdAt  DateTime @default(now())
+}
+
+model MarketplaceListing {
+  id        String        @id @default(cuid())
+  userId    String
+  title     String
+  category  String
+  price     Decimal       @db.Decimal(10, 2)
+  currency  String
+  status    ListingStatus @default(LIVE)
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Opportunity {
+  id          String   @id @default(cuid())
+  title       String
+  provider    String
+  type        String
+  countryCode String?
+  value       String
+  deadline    DateTime?
+  active      Boolean  @default(true)
+  fieldSchema Json
+  createdAt   DateTime @default(now())
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  userId    String
+  plan      String
+  status    String
+  currency  String
+  amount    Decimal  @db.Decimal(10, 2)
+  startedAt DateTime @default(now())
+  endsAt    DateTime?
+}
+
+model SupportTicket {
+  id          String   @id @default(cuid())
+  userId      String
+  subject     String
+  category    String
+  priority    String   @default("NORMAL")
+  status      String   @default("OPEN")
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  messages    SupportTicketMessage[]
+  @@index([userId])
+  @@index([status])
+}
+
+
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  actor     User?    @relation(fields: [actorId], references: [id])
+}
+
+model ApiEvent {
+  id        String   @id @default(cuid())
+  route     String
+  method    String
+  status    Int
+  latencyMs Int
+  createdAt DateTime @default(now())
+}
+
+
+model AuthIdentity {
+  id         String   @id @default(cuid())
+  userId     String
+  provider   String
+  identifier String
+  verified   Boolean  @default(false)
+  lastUsedAt DateTime?
+  createdAt  DateTime @default(now())
+}
+
+model VerificationRequest {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  status      String   @default("scheduled")
+  evidenceUrl String?
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model DeviceSession {
+  id          String   @id @default(cuid())
+  userId      String
+  deviceHash  String
+  deviceLabel String
+  ipRisk      String
+  status      String   @default("ACTIVE")
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+model LoginAudit {
+  id        String   @id @default(cuid())
+  userId    String?
+  method    String
+  location  String?
+  device    String?
+  result    String
+  risk      String
+  createdAt DateTime @default(now())
+}
+
+model FraudSignal {
+  id        String   @id @default(cuid())
+  userId    String?
+  area      String
+  signal    String
+  score     Int
+  severity  String
+  action    String
+  createdAt DateTime @default(now())
+}
+
+model IdentityRiskProfile {
+  id                         String   @id @default(cuid())
+  userId                     String   @unique
+  identityScore              Int      @default(500)
+  fraudRisk                  String   @default("LOW")
+  verifiedStudent            Boolean  @default(false)
+  verificationCompletion     Int      @default(0)
+  accountRecoveryEnabled     Boolean  @default(false)
+  updatedAt                  DateTime @updatedAt
+}
+
+
+model MessageThread {
+  id          String   @id @default(cuid())
+  title       String
+  context     String
+  priority    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  messages    Message[]
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  threadId  String
+  senderId  String?
+  body      String
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+  thread    MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  category  String
+  read      Boolean  @default(false)
+  actionUrl String?
+  createdAt DateTime @default(now())
+}
+
+
+
+model EmailPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  digest    String
+  enabled   Boolean  @default(true)
+  frequency String
+  updatedAt DateTime @updatedAt
+}
+
+model SupportConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  status    String   @default("OPEN")
+  priority  String   @default("MEDIUM")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model HelpArticle {
+  id        String   @id @default(cuid())
+  title     String
+  category  String
+  body      String
+  helpful   Int      @default(0)
+  published Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model CommunicationCampaign {
+  id        String   @id @default(cuid())
+  name      String
+  channel   String
+  audience  String
+  status    String
+  sent      Int      @default(0)
+  openRate  String?
+  createdAt DateTime @default(now())
+}
+
+
+model StudyAsset {
+  id             String   @id @default(cuid())
+  userId         String
+  title          String
+  type           String
+  module         String
+  aiStatus       String
+  generatedItems Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model FlashcardSet {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  module    String
+  cards     Int
+  mastery   Int
+  dueToday  Int
+  createdAt DateTime @default(now())
+}
+
+model QuizAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  quiz      String
+  module    String
+  score     Int
+  questions Int
+  weakAreas Json
+  createdAt DateTime @default(now())
+}
+
+model RevisionPlan {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  module    String
+  examDate  DateTime
+  readiness Int
+  sessions  Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CourseworkCoachItem {
+  id         String   @id @default(cuid())
+  userId     String
+  title      String
+  module     String
+  stage      String
+  risk       String
+  nextAction String
+  createdAt  DateTime @default(now())
+}
+
+model AcademicInsight {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  detail    String
+  impact    String
+  priority  String
+  createdAt DateTime @default(now())
+}
+
+
+model MoodCheckIn {
+  id          String   @id @default(cuid())
+  userId      String
+  mood        String
+  stressLevel Int
+  sleepHours  Decimal  @db.Decimal(4, 1)
+  note        String?
+  createdAt   DateTime @default(now())
+}
+
+model BurnoutSignal {
+  id             String   @id @default(cuid())
+  userId         String
+  signal         String
+  source         String
+  severity       String
+  recommendation String
+  createdAt      DateTime @default(now())
+}
+
+model LifeReminder {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  category  String
+  dueDate   DateTime
+  status    String
+  createdAt DateTime @default(now())
+}
+
+model HabitRoutine {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  category  String
+  streak    Int      @default(0)
+  target    String
+  status    String
+  updatedAt DateTime @updatedAt
+}
+
+model WellbeingResource {
+  id           String   @id @default(cuid())
+  title        String
+  type         String
+  region       String
+  availability String
+  priority     String
+  published    Boolean @default(true)
+}
+
+
+
+model CampusOperationItem {
+  id         String   @id @default(cuid())
+  universityId String?
+  title      String
+  department String
+  owner      String
+  status     String
+  impact     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model StudentSuccessReport {
+  id        String   @id @default(cuid())
+  universityId String?
+  title     String
+  cohort    String
+  metric    String
+  outcome   String
+  risk      String
+  createdAt DateTime @default(now())
+}
+
+model UniversityCampaign {
+  id        String   @id @default(cuid())
+  universityId String?
+  name      String
+  target    String
+  channel   String
+  status    String
+  reach     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EnterpriseLicense {
+  id          String   @id @default(cuid())
+  university  String
+  plan        String
+  seats       Int
+  usedSeats   Int
+  renewalDate DateTime
+  health      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+model OfflineSyncItem {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String
+  payload     Json?
+  status      String
+  retryCount  Int      @default(0)
+  lastAttempt DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId])
+}
+
+
+
+model MobileWidgetPreference {
+  id          String   @id @default(cuid())
+  userId      String
+  widgetName  String
+  enabled     Boolean  @default(true)
+  refreshRate String
+  updatedAt   DateTime @updatedAt
+}
+
+model DeviceCapabilityConsent {
+  id          String   @id @default(cuid())
+  userId      String
+  capability  String
+  status      String
+  updatedAt   DateTime @updatedAt
+}
+
+
+model SeoLandingPage {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  title          String
+  audience       String
+  status         String
+  visits         Int      @default(0)
+  conversionRate String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model WaitlistEntry {
+  id         String   @id @default(cuid())
+  name       String
+  email      String   @unique
+  country    String
+  university String?
+  source     String
+  status     String
+  position   Int
+  createdAt  DateTime @default(now())
+}
+
+model ViralReferralLoop {
+  id         String   @id @default(cuid())
+  name       String
+  reward     String
+  trigger    String
+  active     Boolean  @default(true)
+  conversion String?
+}
+
+
+model LaunchCampaign {
+  id          String   @id @default(cuid())
+  name        String
+  channel     String
+  target      String
+  status      String
+  leads       Int      @default(0)
+  costPerLead String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ShareCard {
+  id        String   @id @default(cuid())
+  title     String
+  template  String
+  shareText String
+  shares    Int      @default(0)
+  signups   Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+
+model LaunchReadinessItem {
+  id        String   @id @default(cuid())
+  area      String
+  title     String
+  status    String
+  owner     String
+  evidence  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model QaTestSuite {
+  id        String   @id @default(cuid())
+  suite     String
+  passed    Int
+  failed    Int
+  coverage  String
+  lastRun   DateTime?
+  status    String
+  createdAt DateTime @default(now())
+}
+
+model ComplianceReview {
+  id        String   @id @default(cuid())
+  framework String
+  status    String
+  owner     String
+  dueDate   DateTime
+  risk      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DeploymentCertification {
+  id          String   @id @default(cuid())
+  check       String
+  status      String
+  environment String
+  evidence    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InvestorKpi {
+  id        String   @id @default(cuid())
+  metric    String
+  value     String
+  trend     String
+  narrative String
+  createdAt DateTime @default(now())
+}
+
+model LaunchRisk {
+  id         String   @id @default(cuid())
+  risk       String
+  category   String
+  severity   String
+  mitigation String
+  status     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model GoNoGoDecision {
+  id        String   @id @default(cuid())
+  board     String
+  decision  String
+  blocker   String
+  signedBy  String
+  createdAt DateTime @default(now())
+}
+
+model ReadinessScore {
+  id        String   @id @default(cuid())
+  label     String
+  score     Int
+  status    String
+  createdAt DateTime @default(now())
+}
+
+
+model SecurityEvent {
+  id        String   @id @default(cuid())
+  actorId   String?
+  type      String
+  severity  String
+  source    String
+  ip        String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
+
+model MfaEnrollment {
+  id          String   @id @default(cuid())
+  userId      String
+  method      String
+  secretHash  String
+  enabled     Boolean  @default(false)
+  verifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model TrustedDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  deviceHash  String
+  label       String
+  ipRisk      String
+  trusted     Boolean  @default(false)
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+}
+
+model SessionControl {
+  id           String   @id @default(cuid())
+  userId       String
+  sessionHash  String   @unique
+  role         String
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime @default(now())
+}
+
+model PrivilegedActionApproval {
+  id          String   @id @default(cuid())
+  actorId     String
+  action      String
+  resource    String
+  reason      String
+  status      String   @default("scheduled")
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model VulnerabilityRegisterItem {
+  id          String   @id @default(cuid())
+  title       String
+  severity    String
+  status      String
+  owner       String
+  remediation String
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SecurityIncident {
+  id          String   @id @default(cuid())
+  title       String
+  severity    String
+  status      String
+  owner       String
+  summary     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+model ConsentRecord {
+  id            String   @id @default(cuid())
+  userId        String
+  category      String
+  granted       Boolean
+  region        String
+  policyVersion String
+  ip            String?
+  userAgent     String?
+  createdAt     DateTime @default(now())
+}
+
+model DataSubjectRequest {
+  id          String   @id @default(cuid())
+  userId      String
+  requestType String
+  region      String
+  status      String   @default("OPEN")
+  notes       String?
+  dueDate     DateTime
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DataRetentionPolicy {
+  id            String   @id @default(cuid())
+  dataCategory  String
+  retentionDays Int
+  lawfulBasis   String
+  region        String
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model DataProcessingActivity {
+  id             String   @id @default(cuid())
+  activity       String
+  purpose        String
+  lawfulBasis    String
+  dataCategories Json
+  processors     Json?
+  region         String
+  dpiaRequired   Boolean  @default(false)
+  status         String   @default("REVIEW")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model PolicyDocument {
+  id          String   @id @default(cuid())
+  name        String
+  version     String
+  status      String
+  owner       String
+  effectiveAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ComplianceAuditItem {
+  id          String   @id @default(cuid())
+  framework   String
+  control     String
+  status      String
+  risk        String
+  owner       String
+  evidence    String?
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ThirdPartyProcessor {
+  id             String   @id @default(cuid())
+  name           String
+  service        String
+  region         String
+  dataCategories Json
+  dpaStatus      String
+  risk           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+
+model PaymentEvent {
+  id             String   @id @default(cuid())
+  provider       String
+  providerEventId String
+  type           String
+  amount         Decimal  @db.Decimal(12, 2)
+  currency       String
+  status         String
+  idempotencyKey String   @unique
+  rawPayload      Json?
+  createdAt      DateTime @default(now())
+}
+
+model LedgerEntry {
+  id            String   @id @default(cuid())
+  walletId      String
+  debitAccount  String
+  creditAccount String
+  amount        Decimal  @db.Decimal(12, 2)
+  currency      String
+  reference     String
+  status        String   @default("POSTED")
+  createdAt     DateTime @default(now())
+}
+
+model ReconciliationJob {
+  id             String   @id @default(cuid())
+  source         String
+  expectedAmount Decimal  @db.Decimal(12, 2)
+  actualAmount   Decimal  @db.Decimal(12, 2)
+  delta          Decimal  @db.Decimal(12, 2)
+  status         String
+  runAt          DateTime @default(now())
+}
+
+model FinancialFraudCase {
+  id        String   @id @default(cuid())
+  userId    String
+  source    String
+  signal    String
+  riskScore Int
+  severity  String
+  status    String   @default("OPEN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PaymentDispute {
+  id         String   @id @default(cuid())
+  userId     String?
+  provider   String
+  amount     Decimal  @db.Decimal(12, 2)
+  currency   String
+  reason     String
+  status     String
+  evidence   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ChargebackCase {
+  id         String   @id @default(cuid())
+  provider   String
+  amount     Decimal  @db.Decimal(12, 2)
+  currency   String
+  status     String
+  deadline   DateTime?
+  evidence   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model SettlementReport {
+  id          String   @id @default(cuid())
+  provider    String
+  period      String
+  grossAmount Decimal  @db.Decimal(12, 2)
+  fees        Decimal  @db.Decimal(12, 2)
+  netAmount   Decimal  @db.Decimal(12, 2)
+  currency    String
+  status      String
+  createdAt   DateTime @default(now())
+}
+
+model RevenueAssuranceItem {
+  id        String   @id @default(cuid())
+  stream    String
+  expected  Decimal  @db.Decimal(12, 2)
+  actual    Decimal  @db.Decimal(12, 2)
+  variance  Decimal  @db.Decimal(12, 2)
+  status    String
+  owner     String
+  createdAt DateTime @default(now())
+}
+
+
+model ServiceHealthCheck {
+  id        String   @id @default(cuid())
+  service   String
+  status    String
+  latencyMs Int
+  region    String
+  checkedAt DateTime @default(now())
+}
+
+model BackupJob {
+  id          String   @id @default(cuid())
+  target      String
+  status      String
+  region      String
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model RestoreTest {
+  id          String   @id @default(cuid())
+  target      String
+  status      String
+  rtoMinutes  Int
+  rpoMinutes  Int
+  evidence    String?
+  testedAt    DateTime @default(now())
+}
+
+model ReliabilityIncident {
+  id        String   @id @default(cuid())
+  title     String
+  severity  String
+  service   String
+  status    String   @default("OPEN")
+  summary   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CapacityMetric {
+  id          String   @id @default(cuid())
+  service     String
+  metric      String
+  value       String
+  utilisation Int
+  status      String
+  recordedAt  DateTime @default(now())
+}
+
+model QueueMetric {
+  id        String   @id @default(cuid())
+  queue     String
+  depth     Int
+  failed    Int
+  retries   Int
+  status    String
+  createdAt DateTime @default(now())
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  name        String
+  description String
+  enabled     Boolean  @default(false)
+  scope       String   @default("GLOBAL")
+  rules       Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+
+model ReliabilityAudit {
+  id        String   @id @default(cuid())
+  control   String
+  status    String
+  owner     String
+  evidence  String?
+  risk      String
+  createdAt DateTime @default(now())
+}
+
+
+model QaTestRun {
+  id        String   @id @default(cuid())
+  suite     String
+  passed    Int
+  failed    Int
+  coverage  Int
+  status    String
+  runAt     DateTime @default(now())
+}
+
+model QaTestCase {
+  id        String   @id @default(cuid())
+  suite     String
+  title     String
+  status    String
+  severity  String
+  owner     String
+  evidence  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AccessibilityIssue {
+  id        String   @id @default(cuid())
+  area      String
+  wcag      String
+  severity  String
+  status    String
+  owner     String?
+  evidence  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PerformanceMetricRecord {
+  id        String   @id @default(cuid())
+  metric    String
+  value     String
+  status    String
+  route     String?
+  recordedAt DateTime @default(now())
+}
+
+model ReleaseCandidateRecord {
+  id           String   @id @default(cuid())
+  version      String
+  status       String
+  rollbackPlan String
+  approvedBy   String?
+  releasedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model UatFeedback {
+  id        String   @id @default(cuid())
+  group     String
+  feedback  String
+  severity  String
+  approved  Boolean
+  status    String   @default("OPEN")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductionCandidateAuditItem {
+  id        String   @id @default(cuid())
+  area      String
+  control   String
+  score     Int
+  status    String
+  blocker   String?
+  owner     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LoadTestScenario {
+  id           String   @id @default(cuid())
+  targetUsers  Int
+  apiLatencyMs Int
+  dbLatencyMs  Int
+  queueLatencyMs Int
+  costEstimate String
+  status       String
+  createdAt    DateTime @default(now())
+}
+
+
+model DeploymentEnvironment {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  status    String
+  owner     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProviderIntegration {
+  id          String   @id @default(cuid())
+  provider    String
+  environment String
+  status      String
+  owner       String
+  evidence    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UniversityPilot {
+  id          String   @id @default(cuid())
+  university  String
+  country     String
+  cohortSize  Int
+  launchPhase String
+  health      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InvestorDemoEnvironment {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  status    String
+  access    String
+  owner     String
+  createdAt DateTime @default(now())
+}
+
+model RolloutGate {
+  id        String   @id @default(cuid())
+  gate      String
+  status    String
+  owner     String
+  blocker   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductionRolloutPlan {
+  id          String   @id @default(cuid())
+  phase       String
+  region      String
+  targetUsers Int
+  status      String
+  owner       String
+  launchDate  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DeploymentReadinessScore {
+  id        String   @id @default(cuid())
+  area      String
+  score     Int
+  status    String
+  createdAt DateTime @default(now())
+}
+
+
+model PilotUniversityLaunch {
+  id          String   @id @default(cuid())
+  university  String
+  country     String
+  pilotOwner  String
+  cohortSize  Int
+  startDate   DateTime
+  phase       String
+  health      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+model PilotAdoptionMetric {
+  id             String   @id @default(cuid())
+  universityId   String
+  activeUsers    Int
+  totalInvited   Int
+  activationRate Int
+  weeklyRetention Int
+  supportTickets Int
+  recordedAt     DateTime @default(now())
+}
+
+model PilotFeedback {
+  id           String   @id @default(cuid())
+  universityId String
+  group        String
+  rating       Int
+  feedback     String
+  severity     String
+  status       String   @default("OPEN")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model PilotRetentionSnapshot {
+  id            String   @id @default(cuid())
+  universityId  String
+  day1Retention Int
+  day7Retention Int
+  day30Retention Int
+  churnRisk      String
+  recordedAt     DateTime @default(now())
+}
+
+model PilotSupportCase {
+  id           String   @id @default(cuid())
+  universityId String
+  title        String
+  severity     String
+  status       String
+  owner        String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model PilotSuccessReport {
+  id          String   @id @default(cuid())
+  university  String
+  score       Int
+  decision    String
+  summary     String
+  createdAt   DateTime @default(now())
+}
+
+
+
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  subject   String
+  html      String
+  version   String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model AiUsageQuota {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  used      Int      @default(0)
+  limit     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CommunityPost {
+  id        String   @id @default(cuid())
+  authorId  String
+  title     String
+  body      String
+  status    String   @default("PUBLISHED")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CommunityComment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  body      String
+  status    String   @default("PUBLISHED")
+  createdAt DateTime @default(now())
+}
+
+model MerchantProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  businessName    String
+  status          String   @default("PENDING")
+  stripeAccountId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model MarketplaceEscrowPayment {
+  id              String   @id @default(cuid())
+  listingId        String
+  buyerId          String
+  sellerId         String
+  amountPence      Int
+  currency         String   @default("gbp")
+  status           String   @default("PENDING")
+  stripeSessionId  String?
+  stripePaymentId  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+
+model PricingRegion {
+  id                 String   @id @default(cuid())
+  countryCode        String   @unique
+  countryName        String
+  currencyCode       String
+  currencySymbol     String
+  exchangeRateFromUsd Decimal  @db.Decimal(18, 8)
+  defaultLanguage    String   @default("en")
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  rules              PricingRule[]
+}
+
+model PricingPlan {
+  id                String   @id @default(cuid())
+  code              String   @unique
+  name              String
+  description       String
+  baseCurrency      String   @default("USD")
+  monthlyUsdCents   Int
+  quarterlyUsdCents Int
+  yearlyUsdCents    Int
+  stripeProductId   String?
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  rules             PricingRule[]
+}
+
+model PricingRule {
+  id                    String   @id @default(cuid())
+  pricingPlanId          String
+  pricingRegionId        String
+  localMonthlyCents      Int
+  localQuarterlyCents    Int
+  localYearlyCents       Int
+  stripeMonthlyPriceId   String?
+  stripeQuarterlyPriceId String?
+  stripeYearlyPriceId    String?
+  active                 Boolean @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  plan                   PricingPlan @relation(fields: [pricingPlanId], references: [id])
+  region                 PricingRegion @relation(fields: [pricingRegionId], references: [id])
+  @@unique([pricingPlanId, pricingRegionId])
+}
+
+model PromoCode {
+  id                  String   @id @default(cuid())
+  code                String   @unique
+  description         String
+  discountPercent     Int?
+  discountAmountCents Int?
+  currencyCode        String?
+  startsAt            DateTime
+  expiresAt           DateTime
+  maxRedemptions      Int?
+  redeemedCount       Int      @default(0)
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model SubscriptionEntitlement {
+  id                   String   @id @default(cuid())
+  userId               String
+  planCode             String
+  status               String
+  billingPeriod        String
+  countryCode          String
+  currencyCode         String
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model LocaleTranslation {
+  id             String   @id @default(cuid())
+  countryCode    String
+  languageCode   String
+  namespace      String
+  translationKey String
+  value          String
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@unique([countryCode, languageCode, namespace, translationKey])
+}
+
+
+// Full Functional Wiring Models
+
+model FxRateSnapshot {
+  id               String   @id @default(cuid())
+  baseCurrency     String
+  targetCurrency   String
+  rate             Decimal  @db.Decimal(18, 8)
+  provider         String
+  fetchedAt        DateTime @default(now())
+  createdAt        DateTime @default(now())
+  @@index([baseCurrency, targetCurrency])
+}
+
+model PromoRedemption {
+  id              String   @id @default(cuid())
+  promoCodeId      String
+  userId           String
+  checkoutSessionId String?
+  subscriptionId   String?
+  discountPercent  Int?
+  discountAmountCents Int?
+  currencyCode     String?
+  redeemedAt       DateTime @default(now())
+  metadata         Json?
+  @@index([promoCodeId])
+  @@index([userId])
+}
+
+model StripeWebhookEvent {
+  id          String   @id
+  type        String
+  processed   Boolean  @default(false)
+  payload     Json
+  receivedAt  DateTime @default(now())
+  processedAt DateTime?
+}
+
+
+
+model EmailDelivery {
+  id          String   @id @default(cuid())
+  userId      String?
+  toEmail     String
+  templateKey String
+  subject     String
+  status      String
+  providerId  String?
+  error       String?
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+  @@index([userId])
+  @@index([toEmail])
+}
+
+model AiUsageEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  dateKey     String
+  promptChars Int
+  responseChars Int?
+  model       String
+  status      String
+  costEstimateCents Int?
+  createdAt   DateTime @default(now())
+  @@index([userId, dateKey])
+}
+
+model MarketplaceEscrowEvent {
+  id             String   @id @default(cuid())
+  escrowPaymentId String
+  eventType      String
+  status         String
+  amountCents    Int?
+  currencyCode   String?
+  stripeEventId  String?
+  payload        Json?
+  createdAt      DateTime @default(now())
+  @@index([escrowPaymentId])
+}
+
+model HomepageContent {
+  id                 String   @id @default(cuid())
+  key                String   @unique
+  heroHeadline       String
+  heroSubheadline    String
+  primaryCtaLabel    String
+  primaryCtaHref     String
+  secondaryCtaLabel  String?
+  secondaryCtaHref   String?
+  status             String   @default("PUBLISHED")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  sections           HomepageSection[]
+}
+
+model HomepageSection {
+  id                String   @id @default(cuid())
+  homepageContentId String
+  sortOrder         Int
+  sectionType       String
+  title             String
+  body              String
+  ctaLabel          String?
+  ctaHref           String?
+  metadata          Json?
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  homepageContent   HomepageContent @relation(fields: [homepageContentId], references: [id])
+}
+
+model HomepageMetric {
+  id        String   @id @default(cuid())
+  label     String
+  value     String
+  sortOrder Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model StudentTask {
+  id String @id @default(cuid())
+  userId String
+  title String
+  description String?
+  category String
+  priority String @default("MEDIUM")
+  status String @default("OPEN")
+  dueAt DateTime?
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([userId])
+}
+
+model StudentWallet {
+  id String @id @default(cuid())
+  userId String @unique
+  currencyCode String @default("USD")
+  status String @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ledger StudentWalletLedger[]
+}
+
+model StudentWalletLedger {
+  id String @id @default(cuid())
+  walletId String
+  userId String
+  type String
+  amountCents Int
+  currencyCode String
+  source String
+  reference String?
+  status String @default("POSTED")
+  createdAt DateTime @default(now())
+  wallet StudentWallet @relation(fields: [walletId], references: [id])
+  @@index([userId])
+}
+
+model StudentDeal {
+  id String @id @default(cuid())
+  merchantName String
+  title String
+  description String
+  category String
+  countryCode String
+  currencyCode String
+  discountLabel String
+  redemptionUrl String?
+  premiumOnly Boolean @default(false)
+  active Boolean @default(true)
+  expiresAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StudentOpportunity {
+  id String @id @default(cuid())
+  title String
+  provider String
+  type String
+  countryCode String
+  location String?
+  remote Boolean @default(false)
+  payLabel String?
+  description String
+  applicationUrl String?
+  active Boolean @default(true)
+  closesAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StudentScholarship {
+  id String @id @default(cuid())
+  title String
+  provider String
+  countryCode String
+  amountLabel String?
+  eligibility String
+  applicationUrl String?
+  active Boolean @default(true)
+  deadlineAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StudentWellbeingCheckIn {
+  id String @id @default(cuid())
+  userId String
+  moodScore Int
+  stressScore Int
+  note String?
+  createdAt DateTime @default(now())
+  @@index([userId])
+}
+
+model StudentCareerProfile {
+  id String @id @default(cuid())
+  userId String @unique
+  targetRole String?
+  skills String[]
+  cvUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StudentMarketplaceListing {
+  id String @id @default(cuid())
+  sellerId String
+  title String
+  description String
+  category String
+  priceCents Int
+  currencyCode String
+  status String @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([sellerId])
+}
+
+model ApiAuditLog {
+  id String @id @default(cuid())
+  userId String?
+  route String
+  action String
+  entityType String?
+  entityId String?
+  status String
+  metadata Json?
+  createdAt DateTime @default(now())
+  @@index([route])
+}
+
+
+// UniSphere Full Engine Completion Models
+
+model NotificationPreference {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  email       Boolean  @default(true)
+  push        Boolean  @default(true)
+  inApp       Boolean  @default(true)
+  sms         Boolean  @default(false)
+  marketing   Boolean  @default(false)
+  academic    Boolean  @default(true)
+  finance     Boolean  @default(true)
+  wellbeing   Boolean  @default(true)
+  community   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ScheduledNotification {
+  id          String   @id @default(cuid())
+  userId      String?
+  segment     String?
+  title       String
+  body        String
+  channel     String
+  status      String   @default("SCHEDULED")
+  scheduledAt DateTime
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model NotificationDelivery {
+  id             String   @id @default(cuid())
+  notificationId String?
+  scheduledId    String?
+  userId         String?
+  channel        String
+  status         String
+  providerId     String?
+  error          String?
+  deliveredAt    DateTime?
+  createdAt      DateTime @default(now())
+  @@index([userId])
+  @@index([status])
+}
+
+model AiConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String?
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  messages  AiMessage[]
+  @@index([userId])
+}
+
+model AiMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  userId         String
+  role           String
+  content        String
+  model          String?
+  tokenCount     Int?
+  createdAt      DateTime @default(now())
+  conversation   AiConversation @relation(fields: [conversationId], references: [id])
+  @@index([userId])
+}
+
+model AiTokenLedger {
+  id          String   @id @default(cuid())
+  userId      String
+  provider    String
+  model       String
+  inputTokens Int
+  outputTokens Int
+  costCents   Int?
+  createdAt   DateTime @default(now())
+  @@index([userId])
+}
+
+model CommunityCategory {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  posts       CommunityForumPost[]
+}
+
+model CommunityForumPost {
+  id          String   @id @default(cuid())
+  categoryId  String
+  authorId    String
+  title       String
+  body        String
+  status      String   @default("PUBLISHED")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  category    CommunityCategory @relation(fields: [categoryId], references: [id])
+  replies     CommunityReply[]
+  likes       CommunityLike[]
+  reports     CommunityReport[]
+  saves       CommunitySavedPost[]
+  @@index([categoryId])
+  @@index([authorId])
+}
+
+model CommunityReply {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  body      String
+  status    String   @default("PUBLISHED")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post      CommunityForumPost @relation(fields: [postId], references: [id])
+  @@index([postId])
+}
+
+model CommunityLike {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      CommunityForumPost @relation(fields: [postId], references: [id])
+  @@unique([postId, userId])
+}
+
+model CommunityReport {
+  id        String   @id @default(cuid())
+  postId    String
+  reporterId String
+  reason    String
+  status    String   @default("OPEN")
+  createdAt DateTime @default(now())
+  post      CommunityForumPost @relation(fields: [postId], references: [id])
+  @@index([status])
+}
+
+model CommunitySavedPost {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      CommunityForumPost @relation(fields: [postId], references: [id])
+  @@unique([postId, userId])
+}
+
+model CommunityReputation {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  points    Int      @default(0)
+  level     String   @default("NEW_MEMBER")
+  updatedAt DateTime @updatedAt
+}
+
+model RewardEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  source      String
+  amountCents Int
+  currencyCode String
+  status      String   @default("POSTED")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  @@index([userId])
+}
+
+model ReferralReward {
+  id          String   @id @default(cuid())
+  referrerId  String
+  referredId  String?
+  code        String
+  status      String   @default("PENDING")
+  rewardCents Int
+  currencyCode String @default("USD")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([referrerId])
+}
+
+model CashbackReward {
+  id          String   @id @default(cuid())
+  userId      String
+  source      String
+  amountCents Int
+  currencyCode String
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([userId])
+}
+
+model MarketplaceOrder {
+  id          String   @id @default(cuid())
+  listingId   String
+  buyerId     String
+  sellerId    String
+  amountCents Int
+  currencyCode String
+  status      String   @default("PENDING")
+  escrowPaymentId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
+}
+
+model MarketplaceRefund {
+  id        String   @id @default(cuid())
+  orderId   String
+  amountCents Int
+  currencyCode String
+  reason    String
+  status    String   @default("REQUESTED")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([orderId])
+}
+
+model SellerPayout {
+  id          String   @id @default(cuid())
+  sellerId    String
+  amountCents Int
+  currencyCode String
+  status      String   @default("PENDING")
+  providerId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([sellerId])
+}
+
+
+model ApiRouteRegistry {
+  id          String   @id @default(cuid())
+  endpoint    String   @unique
+  methods     String[]
+  purpose     String
+  functionalStatus String @default("DB_CONNECTED")
+  productArea String?
+  requiresProvider Boolean @default(false)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ApiRequestAudit {
+  id          String   @id @default(cuid())
+  endpoint    String
+  method      String
+  userId      String?
+  status      String
+  durationMs  Int?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  @@index([endpoint])
+  @@index([method])
+  @@index([createdAt])
+}
+
+model SystemReadinessCheck {
+  id          String   @id @default(cuid())
+  category    String
+  name        String
+  status      String
+  detail      String?
+  checkedAt   DateTime @default(now())
+  @@index([category])
+  @@index([status])
+}
+
+
+model OnboardingFlow {
+  id String @id @default(cuid())
+  code String @unique
+  name String
+  description String
+  role String
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  steps OnboardingStep[]
+}
+
+model OnboardingStep {
+  id String @id @default(cuid())
+  flowId String
+  code String
+  title String
+  description String
+  route String
+  sortOrder Int
+  required Boolean @default(true)
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  flow OnboardingFlow @relation(fields: [flowId], references: [id])
+  progress UserOnboardingProgress[]
+  @@unique([flowId, code])
+}
+
+model UserOnboardingProfile {
+  id String @id @default(cuid())
+  userId String @unique
+  displayName String?
+  countryCode String?
+  languageCode String @default("en")
+  currencyCode String @default("USD")
+  universityName String?
+  courseName String?
+  yearOfStudy String?
+  studyGoal String?
+  aiSupportLevel String @default("BALANCED")
+  aiDailyReminder Boolean @default(true)
+  marketplaceInterest Boolean @default(true)
+  merchantInterested Boolean @default(false)
+  notificationEmail Boolean @default(true)
+  notificationPush Boolean @default(true)
+  notificationInApp Boolean @default(true)
+  completed Boolean @default(false)
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model UserOnboardingProgress {
+  id String @id @default(cuid())
+  userId String
+  stepId String
+  status String @default("PENDING")
+  completedAt DateTime?
+  data Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  step OnboardingStep @relation(fields: [stepId], references: [id])
+  @@unique([userId, stepId])
+}
+
+model OnboardingOption {
+  id String @id @default(cuid())
+  category String
+  value String
+  label String
+  metadata Json?
+  sortOrder Int @default(0)
+  active Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([category, value])
+}
+
+
+// UniSphere StudentOS Expansion Models
+
+model CourseworkWorkspace {
+  id              String   @id @default(cuid())
+  userId          String
+  title           String
+  courseName      String?
+  assignmentType  String
+  briefText       String
+  deadlineAt      DateTime?
+  status          String   @default("ACTIVE")
+  wordTarget      Int?
+  integrityMode   String   @default("GUIDED")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  outline         CourseworkOutline?
+  sources         CourseworkSource[]
+  milestones      CourseworkMilestone[]
+  feedback        CourseworkFeedback[]
+  @@index([userId])
+  @@index([status])
+}
+
+model CourseworkOutline {
+  id          String   @id @default(cuid())
+  workspaceId String   @unique
+  thesis      String?
+  sections    Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   CourseworkWorkspace @relation(fields: [workspaceId], references: [id])
+}
+
+model CourseworkSource {
+  id          String   @id @default(cuid())
+  workspaceId String
+  title       String
+  sourceType  String
+  url         String?
+  citation    String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  workspace   CourseworkWorkspace @relation(fields: [workspaceId], references: [id])
+  @@index([workspaceId])
+}
+
+model CourseworkMilestone {
+  id          String   @id @default(cuid())
+  workspaceId String
+  title       String
+  status      String   @default("PENDING")
+  dueAt       DateTime?
+  completedAt DateTime?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  workspace   CourseworkWorkspace @relation(fields: [workspaceId], references: [id])
+  @@index([workspaceId])
+}
+
+model CourseworkFeedback {
+  id          String   @id @default(cuid())
+  workspaceId String
+  feedbackType String
+  content     String
+  score       Int?
+  createdAt   DateTime @default(now())
+  workspace   CourseworkWorkspace @relation(fields: [workspaceId], references: [id])
+  @@index([workspaceId])
+}
+
+model StudentTwinProfile {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  preferredStudyStart String?
+  preferredStudyEnd   String?
+  focusSessionMinutes Int      @default(45)
+  weeklyStudyTarget   Int      @default(600)
+  sleepTargetHours    Int      @default(8)
+  budgetPeriod        String   @default("MONTHLY")
+  academicRiskLevel   String   @default("LOW")
+  wellbeingRiskLevel  String   @default("LOW")
+  financialRiskLevel  String   @default("LOW")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model StudentTwinSignal {
+  id          String   @id @default(cuid())
+  userId      String
+  signalType  String
+  value       Float
+  unit        String?
+  source      String
+  capturedAt  DateTime @default(now())
+  metadata    Json?
+  @@index([userId])
+  @@index([signalType])
+}
+
+model StudentTwinRecommendation {
+  id          String   @id @default(cuid())
+  userId      String
+  category    String
+  title       String
+  message     String
+  priority    String   @default("MEDIUM")
+  actionRoute String?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?
+  @@index([userId])
+  @@index([status])
+}
+
+model StudentDailyBrief {
+  id          String   @id @default(cuid())
+  userId      String
+  briefDate   DateTime
+  summary     String
+  actions     Json
+  riskFlags   Json?
+  createdAt   DateTime @default(now())
+  @@unique([userId, briefDate])
+}
+
+model StudentBudgetPlan {
+  id            String   @id @default(cuid())
+  userId        String
+  currencyCode  String
+  periodStart   DateTime
+  periodEnd     DateTime
+  incomeCents   Int      @default(0)
+  expenseCents  Int      @default(0)
+  savingsTargetCents Int  @default(0)
+  status        String   @default("ACTIVE")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  categories    StudentBudgetCategory[]
+  @@index([userId])
+}
+
+model StudentBudgetCategory {
+  id          String   @id @default(cuid())
+  budgetId    String
+  name        String
+  limitCents  Int
+  spentCents  Int      @default(0)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  budget      StudentBudgetPlan @relation(fields: [budgetId], references: [id])
+  @@index([budgetId])
+}
+
+model StudentHabit {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  category    String
+  targetCount Int      @default(1)
+  frequency   String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  entries     StudentHabitEntry[]
+  @@index([userId])
+}
+
+model StudentHabitEntry {
+  id        String   @id @default(cuid())
+  habitId   String
+  userId    String
+  entryDate DateTime
+  count     Int      @default(1)
+  note      String?
+  createdAt DateTime @default(now())
+  habit     StudentHabit @relation(fields: [habitId], references: [id])
+  @@unique([habitId, entryDate])
+}
+
+model FocusSession {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String?
+  startedAt   DateTime
+  endedAt     DateTime?
+  durationMin Int?
+  sessionType String
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  @@index([userId])
+}
+
+model StudentCountryProfile {
+  id              String   @id @default(cuid())
+  countryCode     String   @unique
+  countryName     String
+  languageCodes   String[]
+  currencyCode    String
+  academicYearStart Int?
+  academicYearEnd Int?
+  localTerms      Json?
+  studentGuidance Json?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model StudentWorkspaceDocument {
+  id          String   @id @default(cuid())
+  userId      String
+  workspaceId String?
+  title       String
+  documentType String
+  content     Json
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([userId])
+}
+
+model StudentWorkspaceBoard {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  boardType   String
+  content     Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([userId])
+}
+
+
+model GlobalSearchDocument {
+  id          String   @id @default(cuid())
+  entityType  String
+  entityId    String
+  title       String
+  summary     String
+  route       String
+  countryCode String?
+  userId      String?
+  visibility  String   @default("PUBLIC")
+  searchText  String
+  metadata    Json?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([entityType])
+  @@index([countryCode])
+  @@index([userId])
+}
+
+model MediaAsset {
+  id          String   @id @default(cuid())
+  ownerId     String
+  fileName    String
+  mimeType    String
+  sizeBytes   Int
+  storageKey  String   @unique
+  publicUrl   String?
+  purpose     String
+  status      String   @default("ACTIVE")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([ownerId])
+  @@index([purpose])
+}
+
+
+
+model SupportTicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id])
+  @@index([ticketId])
+}
+
+model SavedItem {
+  id         String   @id @default(cuid())
+  userId     String
+  entityType String
+  entityId   String
+  route      String
+  title      String
+  createdAt  DateTime @default(now())
+  @@unique([userId, entityType, entityId])
+  @@index([userId])
+}
+
+
+
+model SystemHealthCheck {
+  id          String   @id @default(cuid())
+  service     String
+  status      String
+  latencyMs   Int?
+  detail      String?
+  checkedAt   DateTime @default(now())
+  @@index([service])
+  @@index([status])
+}
+
+model BackgroundJob {
+  id          String   @id @default(cuid())
+  queue       String
+  jobType     String
+  payload     Json
+  status      String   @default("PENDING")
+  attempts    Int      @default(0)
+  maxAttempts Int      @default(3)
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  failedAt    DateTime?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([queue])
+  @@index([status])
+}
+
+model LocalisationPreference {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  languageCode String   @default("en")
+  countryCode  String?
+  currencyCode String   @default("USD")
+  timezone     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+
+model UserAccount {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  passwordHash      String?
+  role              String
+  emailVerifiedAt   DateTime?
+  phoneNumber       String?
+  phoneVerifiedAt   DateTime?
+  mfaEnabled        Boolean  @default(false)
+  mfaSecret         String?
+  status            String   @default("ACTIVE")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  authCodes         AuthCode[]
+}
+
+model AuthCode {
+  id         String   @id @default(cuid())
+  userId     String
+  purpose    String
+  codeHash   String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+  user       UserAccount @relation(fields: [userId], references: [id])
+  @@index([userId, purpose])
+}
+
+
+
+model SmsDelivery {
+  id          String   @id @default(cuid())
+  userId      String?
+  phoneNumber String
+  templateKey String
+  status      String
+  providerId  String?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MfaChallenge {
+  id          String   @id @default(cuid())
+  userId      String
+  channel     String
+  codeHash    String
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+  @@index([userId])
+}
+
+
+model AiAssistantProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  preferredMode      String   @default("BALANCED")
+  citationStyle      String   @default("HARVARD")
+  dailyLimit         Int      @default(25)
+  usedToday          Int      @default(0)
+  usageResetAt       DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model AiStudyPlan {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  objective   String
+  plan        Json
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([userId])
+}
+
+model StudentLifeService {
+  id          String   @id @default(cuid())
+  category    String
+  title       String
+  description String
+  countryCode String?
+  provider    String?
+  actionUrl   String?
+  metadata    Json?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([category])
+  @@index([countryCode])
+}
+
+model StudentLifeCase {
+  id          String   @id @default(cuid())
+  userId      String
+  category    String
+  title       String
+  description String
+  status      String   @default("OPEN")
+  priority    String   @default("NORMAL")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([userId])
+}
+
+model CareerOpportunityMatch {
+  id            String   @id @default(cuid())
+  userId        String
+  opportunityId String
+  score         Int
+  reasons       Json
+  createdAt     DateTime @default(now())
+  @@unique([userId, opportunityId])
+  @@index([userId])
+}
+
+model CareerDocument {
+  id          String   @id @default(cuid())
+  userId      String
+  documentType String
+  title       String
+  content     Json
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([userId])
+}
+
+model MarketplaceRecommendation {
+  id          String   @id @default(cuid())
+  userId      String
+  listingId   String
+  score       Int
+  reasons     Json
+  createdAt   DateTime @default(now())
+  @@unique([userId, listingId])
+  @@index([userId])
+}
+
+model NotificationDigest {
+  id          String   @id @default(cuid())
+  userId      String
+  channel     String
+  periodStart DateTime
+  periodEnd   DateTime
+  content     Json
+  status      String   @default("PENDING")
+  sentAt      DateTime?
+  createdAt   DateTime @default(now())
+  @@index([userId])
+}
+
+model TwinModelSnapshot {
+  id          String   @id @default(cuid())
+  userId      String
+  snapshotAt  DateTime @default(now())
+  academic    Json
+  financial   Json
+  career      Json
+  wellbeing   Json
+  productivity Json
+  createdAt   DateTime @default(now())
+  @@index([userId])
+}
+
+model TwinActionPlan {
+  id          String   @id @default(cuid())
+  userId      String
+  category    String
+  title       String
+  actions     Json
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([userId])
+}
+
+model AiQuota {
+  id String @id @default(cuid())
+  userId String @unique
+  monthlyLimit Int @default(100)
+  used Int @default(0)
+  periodStart DateTime @default(now())
+  periodEnd DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model DomainEvent {
+  id            String   @id @default(cuid())
+  aggregateType String
+  aggregateId   String
+  eventType     String
+  payload       Json
+  status        String   @default("PENDING")
+  attempts      Int      @default(0)
+  occurredAt    DateTime @default(now())
+  processedAt   DateTime?
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@index([status])
+  @@index([aggregateType, aggregateId])
+  @@index([eventType])
+}
+
+model OperationTrace {
+  id            String   @id @default(cuid())
+  correlationId String
+  userId        String?
+  operation     String
+  stage         String
+  status        String
+  detail        Json?
+  durationMs    Int?
+  createdAt     DateTime @default(now())
+  @@index([correlationId])
+  @@index([operation])
+  @@index([status])
+}
+
+model IdempotencyRecord {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  operation   String
+  requestHash String
+  response    Json?
+  status      String   @default("IN_PROGRESS")
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  @@index([operation])
+}
+
+model WorkerExecution {
+  id           String   @id @default(cuid())
+  eventId      String?
+  workerName   String
+  jobName      String
+  status       String
+  attempt      Int      @default(1)
+  startedAt    DateTime @default(now())
+  completedAt  DateTime?
+  durationMs   Int?
+  error        String?
+  result       Json?
+  @@index([workerName])
+  @@index([status])
+}

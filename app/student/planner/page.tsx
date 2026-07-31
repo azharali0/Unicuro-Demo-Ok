@@ -1,0 +1,2 @@
+import { requireRole } from "@/lib/session"; import { listStudentTasks } from "@/lib/studentEnginesDb";
+export default async function Page(){ const u=await requireRole(["STUDENT","MERCHANT"]); const tasks=await listStudentTasks(u.id); return <main className="min-h-screen bg-white p-6"><section className="mx-auto max-w-6xl"><h1 className="text-5xl font-black">Planner & Tasks</h1><div className="mt-6 grid gap-3">{tasks.map(t=><article key={t.id} className="rounded-2xl border bg-white p-4"><b>{t.title}</b><p>{t.status}</p></article>)}</div></section></main>}
